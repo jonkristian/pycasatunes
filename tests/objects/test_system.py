@@ -6,7 +6,7 @@ from tests.responses.system_fixture import system_fixture_response
 
 
 def test_system(system_fixture_response):
-    obj = CasaTunesSystem(system_fixture_response)
+    obj = CasaTunesSystem(None, system_fixture_response)
     assert obj.AppName == system_fixture_response["AppName"]
     assert obj.ControllerFeatures == system_fixture_response["ControllerFeatures"]
     assert obj.EQSettings.Minimum == system_fixture_response["EQSettings"]["Minimum"]

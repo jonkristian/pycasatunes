@@ -29,7 +29,7 @@ def system_fixture_response():
         "MatrixInfo": [
             {
                 "Title": "Matrix: CasaTunes CT",
-                "Values": [{"Name": "Zones:", "Value": "1-3", "IsError": False}],
+                "Values": [],
             }
         ],
     }

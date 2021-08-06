@@ -6,7 +6,7 @@ from tests.responses.zone_fixture import zone_fixture_response
 
 
 def test_zone(zone_fixture_response):
-    obj = CasaTunesZone(zone_fixture_response)
+    obj = CasaTunesZone(None, zone_fixture_response)
     assert obj.Balance == zone_fixture_response["Balance"]
     assert obj.Bass == zone_fixture_response["Bass"]
     assert obj.DND == zone_fixture_response["DND"]

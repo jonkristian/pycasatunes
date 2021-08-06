@@ -6,7 +6,7 @@ from tests.responses.source_fixture import source_fixture_response
 
 
 def test_source(source_fixture_response):
-    obj = CasaTunesSource(source_fixture_response)
+    obj = CasaTunesSource(None, source_fixture_response)
     assert obj.Hidden == source_fixture_response["Hidden"]
     assert obj.IsShared == source_fixture_response["IsShared"]
     assert obj.Name == source_fixture_response["Name"]

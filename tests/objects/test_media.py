@@ -6,7 +6,7 @@ from tests.responses.media_fixture import media_fixture_response
 
 
 def test_media(media_fixture_response):
-    obj = CasaTunesMedia(media_fixture_response)
+    obj = CasaTunesMedia(None, media_fixture_response)
     assert obj.SourceID == media_fixture_response["SourceID"]
     assert obj.QueueCount == media_fixture_response["QueueCount"]
     assert obj.QueueSongIndex == media_fixture_response["QueueSongIndex"]
