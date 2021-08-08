@@ -4,8 +4,6 @@ import logging
 from aiohttp import ClientResponse
 from typing import List
 
-from datetime import datetime
-
 from .const import API_PORT
 from .objects.base import CasaBase
 from .objects.system import CasaTunesSystem
@@ -107,6 +105,7 @@ class CasaTunes(CasaBase):
         )
         json = await response.json()
         self.logger.debug(json)
+
         self._sources = [
             CasaTunesSource(self._client, SourceID) for SourceID in json or []
         ]
@@ -128,39 +127,50 @@ class CasaTunes(CasaBase):
         self._media_dict: dict = {}
         for media in self._media:
             self._media_dict[media.SourceID] = media
-            media.last_updated_at = datetime.utcnow()
 
     async def turn_on(self, zone_id):
-        return await self._client.get(
+        response = await self._client.get(
             f"http://{self._host}:{API_PORT}/api/v1/zones/{zone_id}?Power=on"
         )
+        json = await response.json()
+        self.logger.debug(json)
 
     async def turn_off(self, zone_id):
-        return await self._client.get(
+        response = await self._client.get(
             f"http://{self._host}:{API_PORT}/api/v1/zones/{zone_id}?Power=off"
         )
+        json = await response.json()
+        self.logger.debug(json)
 
     async def mute_volume(self, zone_id, mute):
-        return await self._client.get(
+        response = await self._client.get(
             f"http://{self._host}:{API_PORT}/api/v1/zones/{zone_id}?Mute={mute}"
         )
+        json = await response.json()
+        self.logger.debug(json)
 
     async def set_volume_level(self, zone_id, volume):
-        return await self._client.get(
+        response = await self._client.get(
             f"http://{self._host}:{API_PORT}/api/v1/zones/{zone_id}?Volume={volume}"
         )
+        json = await response.json()
+        self.logger.debug(json)
 
     async def change_source(self, zone_id, source):
         """Send player action and option."""
-        return await self._client.get(
+        response = await self._client.get(
             f"http://{self._host}:{API_PORT}/api/v1/zones/{zone_id}?SourceID={source}"
         )
+        json = await response.json()
+        self.logger.debug(json)
 
     async def player_action(self, zone_id, action, option=""):
         """Send player action and option."""
-        return await self._client.get(
+        response = await self._client.get(
             f"http://{self._host}:{API_PORT}/api/v1/zones/{zone_id}/player/{action}/{option}"
         )
+        json = await response.json()
+        self.logger.debug(json)
 
     async def zone_master(self, zone_id, mode):
         """Set Zone master flag."""
