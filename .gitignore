@@ -48,3 +48,7 @@ venv/
 
 # Notes
 *.notes
+
+# Local testing
+/get_*
+generator/input_*

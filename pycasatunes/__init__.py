@@ -8,8 +8,9 @@ from .const import API_PORT
 from .objects.base import CasaBase
 from .objects.system import CasaTunesSystem
 from .objects.zone import CasaTunesZone
-from .objects.source import CasaTunesSource
 from .objects.media import CasaTunesMedia
+from .objects.source import CasaTunesSource
+from .objects.nowplaying import CasaTunesNowPlaying
 from .client import CasaClient
 
 
@@ -30,8 +31,8 @@ class CasaTunes(CasaBase):
         self._sources: List[CasaTunesSource] = []
         self._sources_dict: dict = {}
 
-        self._media: List[CasaTunesMedia] = []
-        self._media_dict: dict = {}
+        self._nowplaying: List[CasaTunesNowPlaying] = []
+        self._nowplaying_dict: dict = {}
 
     @property
     def host(self) -> str:
@@ -58,12 +59,12 @@ class CasaTunes(CasaBase):
         return self._sources_dict
 
     @property
-    def media(self) -> dict:
-        return self._media
+    def nowplaying(self) -> dict:
+        return self._nowplaying
 
     @property
-    def media_dict(self) -> dict:
-        return self._media_dict
+    def nowplaying_dict(self) -> dict:
+        return self._nowplaying_dict
 
     async def fetch(self) -> None:
         """Fetch data from CasaTunes zone."""
@@ -71,7 +72,7 @@ class CasaTunes(CasaBase):
         data["system"] = await self.get_system()
         data["zones"] = await self.get_zones()
         data["sources"] = await self.get_sources()
-        data["media"] = await self.get_media()
+        data["nowplaying"] = await self.get_nowplaying()
 
         return data
 
@@ -114,19 +115,48 @@ class CasaTunes(CasaBase):
         for source in self._sources:
             self._sources_dict[source.SourceID] = source
 
-    async def get_media(self) -> CasaTunesMedia:
+    async def get_nowplaying(self) -> CasaTunesNowPlaying:
         response = await self._client.get(
             f"http://{self._host}:{API_PORT}/api/v1/sources/nowplaying"
         )
         json = await response.json()
         self.logger.debug(json)
-        self._media = [
-            CasaTunesMedia(self._client, SourceID) for SourceID in json or []
+        self._nowplaying = [
+            CasaTunesNowPlaying(self._client, SourceID) for SourceID in json or []
         ]
 
-        self._media_dict: dict = {}
-        for media in self._media:
-            self._media_dict[media.SourceID] = media
+        self._nowplaying_dict: dict = {}
+        for item in self._nowplaying:
+            self._nowplaying_dict[item.SourceID] = item
+
+    async def get_media(self, opts = {}) -> CasaTunesMedia:
+        """Get Zone Media."""
+        if 'zone_id' in opts:
+            if 'item_id' in opts:
+                response = await self._client.get(
+                    f"http://{self._host}:{API_PORT}/api/v1/media/{opts['item_id']}?limit={opts['limit']}"
+                )
+            else:
+                response = await self._client.get(
+                    f"http://{self._host}:{API_PORT}/api/v1/media/zones/{opts['zone_id']}?limit={opts['limit']}"
+                )
+
+        json = await response.json()
+        self.logger.debug(json)
+
+        return json
+
+    async def play_media(self, zone_id, media_id):
+        """Send player action and option."""
+        response = await self._client.get(
+            f"http://{self._host}:{API_PORT}/api/v1/media/zones/{zone_id}/play/{media_id}"
+        )
+        json = await response.json()
+        self.logger.debug(json)
+
+    async def get_image(self, image_id) -> CasaTunesMedia:
+        """Get Image."""
+        return f"http://{self._host}:{API_PORT}/api/v1/images/{image_id}"
 
     async def turn_on(self, zone_id):
         response = await self._client.get(
