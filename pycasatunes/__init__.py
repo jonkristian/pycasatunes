@@ -146,6 +146,17 @@ class CasaTunes(CasaBase):
 
         return json
 
+    async def search_media(self, zone_id, keyword) -> CasaTunesMedia:
+        """Get Zone Media."""
+        response = await self._client.get(
+            f"http://{self._host}:{API_PORT}/api/v1/media/zones/{zone_id}/search/{keyword}"
+        )
+
+        json = await response.json()
+        self.logger.debug(json)
+
+        return json
+
     async def play_media(self, zone_id, media_id):
         """Send player action and option."""
         response = await self._client.get(
