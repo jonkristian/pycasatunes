@@ -86,6 +86,8 @@ class CasaTunes(CasaBase):
         system = [CasaTunesSystem(self._client, json)]
         self._system = system[0]
 
+        return self._system
+
     async def get_zones(self) -> None:
         """Get Zones."""
         response: ClientResponse = await self._client.get(
