@@ -207,6 +207,14 @@ class CasaTunes(CasaBase):
         json = await response.json()
         self.logger.debug(json)
 
+    async def clear_playlist(self, source_id):
+        """Clear playlist on source."""
+        response = await self._client.get(
+            f"http://{self._host}:{API_PORT}/api/v1/sources/{source_id}/queue/delete"
+        )
+        json = await response.json()
+        self.logger.debug(json)
+
     async def player_action(self, zone_id, action, option=""):
         """Send player action and option."""
         response = await self._client.get(
