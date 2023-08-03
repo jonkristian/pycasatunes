@@ -1,6 +1,7 @@
 """CasaTunes: Init"""
 import logging
 
+import urllib.parse
 from aiohttp import ClientResponse
 from typing import List
 
@@ -148,21 +149,74 @@ class CasaTunes(CasaBase):
 
         return json
 
-    async def search_media(self, zone_id, keyword) -> CasaTunesMedia:
-        """Get Zone Media."""
-        response = await self._client.get(
-            f"http://{self._host}:{API_PORT}/api/v1/media/zones/{zone_id}/search/{keyword}"
-        )
+    async def search_media(self, zone_id, query) -> str:
+      """Search Media and return the ID of the closest match."""
+      artist_query = query.get("artist")
+      album_query = query.get("album")
+      track_query = query.get("track")
 
-        json = await response.json()
-        self.logger.debug(json)
+      if not (artist_query or album_query or track_query):
+        return None
 
-        return json
+      # Build the query string dynamically based on available criteria
+      search_query = ""
+      if artist_query:
+        search_query += urllib.parse.quote(artist_query)
+      if album_query:
+        search_query += "+" + urllib.parse.quote(album_query)
+      if track_query:
+        search_query += "+" + urllib.parse.quote(track_query)
+
+      response = await self._client.get(
+        f"http://{self._host}:{API_PORT}/api/v1/media/zones/{zone_id}/search/{search_query}"
+      )
+
+      try:
+        json_data = await response.json()
+        media_items = json_data.get("MediaItems", [])
+      except (ValueError, KeyError):
+        return None
+
+      best_match_score = 0
+      best_match_id = None
+
+      for item in media_items:
+        match_score = 0
+
+        # Check for matches in artist, album, and track separately
+        for key, value in item.items():
+          if key == "GroupName" and value in ["Artists", "Albums", "Tracks"]:
+            continue  # Skip checking the group name
+
+          if isinstance(value, str):
+            value_lower = value.lower()
+            if artist_query and artist_query.lower() in value_lower:
+              match_score += 2  # Give extra weight to artist match
+            if album_query and album_query.lower() in value_lower:
+              match_score += 2  # Give extra weight to album match
+            if track_query and track_query.lower() in value_lower:
+              match_score += 1
+
+        # Update the best match if the current item has a higher score
+        if match_score > best_match_score:
+          best_match_score = match_score
+          best_match_id = item["ID"]
+
+      # Return the ID of the closest match or None if no match is found
+      return best_match_id
 
     async def play_media(self, zone_id, media_id):
         """Send player action and option."""
         response = await self._client.get(
             f"http://{self._host}:{API_PORT}/api/v1/media/zones/{zone_id}/play/{media_id}"
+        )
+        json = await response.json()
+        self.logger.debug(json)
+
+    async def queue_media(self, zone_id, media_id, queue):
+        """Add media_id to queue in various ways."""
+        response = await self._client.get(
+            f"http://{self._host}:{API_PORT}/api/v1/media/zones/{zone_id}/play/{media_id}/addtoqueue/{queue}"
         )
         json = await response.json()
         self.logger.debug(json)
