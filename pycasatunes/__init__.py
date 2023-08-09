@@ -37,34 +37,42 @@ class CasaTunes(CasaBase):
 
     @property
     def host(self) -> str:
+        """Host."""
         return self._host
 
     @property
     def system(self) -> dict:
+        """System."""
         return self._system
 
     @property
     def zones(self) -> dict:
+        """Zones."""
         return self._zones
 
     @property
     def zones_dict(self) -> dict:
+        """Zones dict."""
         return self._zones_dict
 
     @property
     def sources(self) -> dict:
+        """Sources."""
         return self._sources
 
     @property
     def sources_dict(self) -> dict:
+        """Sources dict."""
         return self._sources_dict
 
     @property
     def nowplaying(self) -> dict:
+        """Now playing."""
         return self._nowplaying
 
     @property
     def nowplaying_dict(self) -> dict:
+        """Now playing dict."""
         return self._nowplaying_dict
 
     async def fetch(self) -> None:
@@ -119,6 +127,7 @@ class CasaTunes(CasaBase):
             self._sources_dict[source.SourceID] = source
 
     async def get_nowplaying(self) -> CasaTunesNowPlaying:
+        """Returns now playing information."""
         response = await self._client.get(
             f"http://{self._host}:{API_PORT}/api/v1/sources/nowplaying"
         )
@@ -132,10 +141,10 @@ class CasaTunes(CasaBase):
         for item in self._nowplaying:
             self._nowplaying_dict[item.SourceID] = item
 
-    async def get_media(self, opts = {}) -> CasaTunesMedia:
+    async def get_media(self, opts) -> CasaTunesMedia:
         """Get Zone Media."""
-        if 'zone_id' in opts:
-            if 'item_id' in opts:
+        if "zone_id" in opts:
+            if "item_id" in opts:
                 response = await self._client.get(
                     f"http://{self._host}:{API_PORT}/api/v1/media/{opts['item_id']}?limit={opts['limit']}"
                 )
@@ -149,61 +158,64 @@ class CasaTunes(CasaBase):
 
         return json
 
-    async def search_media(self, zone_id, query) -> str:
-      """Search Media and return the ID of the closest match."""
-      artist_query = query.get("artist")
-      album_query = query.get("album")
-      track_query = query.get("track")
+    async def search_media(self, zone_id, query) -> dict:
+        """Search Media and return the best match."""
+        artist_query = query.get("artist")
+        album_query = query.get("album")
+        track_query = query.get("track")
 
-      if not (artist_query or album_query or track_query):
-        return None
+        if not (artist_query or album_query or track_query):
+            return None
 
-      # Build the query string dynamically based on available criteria
-      search_query = ""
-      if artist_query:
-        search_query += urllib.parse.quote(artist_query)
-      if album_query:
-        search_query += "+" + urllib.parse.quote(album_query)
-      if track_query:
-        search_query += "+" + urllib.parse.quote(track_query)
+        # Build the query string dynamically based on available criteria
+        search_query = "+".join(
+            urllib.parse.quote(query_part)
+            for query_part in [artist_query, album_query, track_query]
+            if query_part
+        )
 
-      response = await self._client.get(
-        f"http://{self._host}:{API_PORT}/api/v1/media/zones/{zone_id}/search/{search_query}"
-      )
+        response = await self._client.get(
+            f"http://{self._host}:{API_PORT}/api/v1/media/zones/{zone_id}/search/{search_query}"
+        )
 
-      try:
-        json_data = await response.json()
-        media_items = json_data.get("MediaItems", [])
-      except (ValueError, KeyError):
-        return None
+        try:
+            json_data = await response.json()
+            media_items = json_data.get("MediaItems", [])
+        except (ValueError, KeyError):
+            return None
 
-      best_match_score = 0
-      best_match_id = None
+        best_match = None
+        best_match_score = 0
 
-      for item in media_items:
-        match_score = 0
+        for item in media_items:
+            artist_name = item.get("Artists", "").lower()
+            album_name = item.get("Title", "").lower()
+            track_name = item.get("Title", "").lower()
+            group_name = item.get("GroupName", "").lower()
 
-        # Check for matches in artist, album, and track separately
-        for key, value in item.items():
-          if key == "GroupName" and value in ["Artists", "Albums", "Tracks"]:
-            continue  # Skip checking the group name
+            artist_score = 0
+            album_score = 0
+            track_score = 0
 
-          if isinstance(value, str):
-            value_lower = value.lower()
-            if artist_query and artist_query.lower() in value_lower:
-              match_score += 2  # Give extra weight to artist match
-            if album_query and album_query.lower() in value_lower:
-              match_score += 2  # Give extra weight to album match
-            if track_query and track_query.lower() in value_lower:
-              match_score += 1
+            if artist_query and artist_query.lower() in artist_name:
+                artist_score = 3
+            if album_query and album_query.lower() in album_name:
+                album_score = 2
+            if track_query and track_query.lower() in track_name:
+                track_score = 1
 
-        # Update the best match if the current item has a higher score
-        if match_score > best_match_score:
-          best_match_score = match_score
-          best_match_id = item["ID"]
+            match_score = artist_score + album_score + track_score
 
-      # Return the ID of the closest match or None if no match is found
-      return best_match_id
+            if match_score > best_match_score:
+                if (
+                    (artist_score and group_name == "artists")
+                    or (album_score and group_name == "albums")
+                    or (track_score and group_name == "tracks")
+                ):
+                    best_match_score = match_score
+                    best_match = item
+
+        return best_match
 
     async def play_media(self, zone_id, media_id):
         """Send player action and option."""
@@ -226,6 +238,7 @@ class CasaTunes(CasaBase):
         return f"http://{self._host}:{API_PORT}/api/v1/images/{image_id}"
 
     async def turn_on(self, zone_id):
+        """Turn on the zone."""
         response = await self._client.get(
             f"http://{self._host}:{API_PORT}/api/v1/zones/{zone_id}?Power=on"
         )
@@ -233,6 +246,7 @@ class CasaTunes(CasaBase):
         self.logger.debug(json)
 
     async def turn_off(self, zone_id):
+        """Turn off the zone."""
         response = await self._client.get(
             f"http://{self._host}:{API_PORT}/api/v1/zones/{zone_id}?Power=off"
         )
@@ -240,6 +254,7 @@ class CasaTunes(CasaBase):
         self.logger.debug(json)
 
     async def mute_volume(self, zone_id, mute):
+        """Mute the zone."""
         response = await self._client.get(
             f"http://{self._host}:{API_PORT}/api/v1/zones/{zone_id}?Mute={mute}"
         )
@@ -247,6 +262,7 @@ class CasaTunes(CasaBase):
         self.logger.debug(json)
 
     async def set_volume_level(self, zone_id, volume):
+        """Set volume level for the zone."""
         response = await self._client.get(
             f"http://{self._host}:{API_PORT}/api/v1/zones/{zone_id}?Volume={volume}"
         )
@@ -300,3 +316,57 @@ class CasaTunes(CasaBase):
         )
         json = await response.json()
         self.logger.debug(json)
+
+    async def tts(self, zone_id, query):
+        """Play TTS in a zone."""
+        message = query.get("input", "")
+        language = query.get("language", "")
+        gender = query.get("gender", "")
+        voice = query.get("voice", "en-US-Wavenet-G")
+        pre_wait = query.get("pre_wait", "")
+        post_wait = query.get("post_wait", "")
+        volume = query.get("volume", "")
+
+        payload = {
+            "languageCode": language,
+            "gender": gender,
+            "voice": voice,
+            "preWait": pre_wait,
+            "postWait": post_wait,
+            "volume": volume,
+        }
+
+        payload_str = "&".join(f"{key}={value}" for key, value in payload.items())
+
+        url = (
+            f"http://{self._host}:{API_PORT}/api/v1/system/tts/input/{message}/zones/{zone_id}?"
+            f"{payload_str}"
+        )
+
+        response = await self._client.get(url)
+        json_response = await response.json()
+        self.logger.debug(json_response)
+
+    async def doorbell(self, zone_id, query):
+        """Play doorbell in a zone."""
+        chime = query.get("chime", "CasaBell 7 Seconds NoDelay")
+        pre_wait = query.get("pre_wait", "")
+        post_wait = query.get("post_wait", "")
+        volume = query.get("volume", "")
+
+        payload = {
+            "preWait": pre_wait,
+            "postWait": post_wait,
+            "volume": volume,
+        }
+
+        payload_str = "&".join(f"{key}={value}" for key, value in payload.items())
+
+        url = (
+            f"http://{self._host}:{API_PORT}/api/v1/system/doorbell/zones/{zone_id}/chimes/{chime}?"
+            f"{payload_str}"
+        )
+
+        response = await self._client.get(url)
+        json_response = await response.json()
+        self.logger.debug(json_response)
